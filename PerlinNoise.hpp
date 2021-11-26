@@ -39,6 +39,19 @@
 # include <random>
 # include <type_traits>
 
+
+#if __cpp_lib_clamp
+#define CLAMPFUNC std::clamp<value_type>
+#else
+#define CLAMPFUNC clamp 
+#endif
+
+#if __has_cpp_attribute(nodiscard) >= 201907L
+#define NODISCARD [[nodiscard]]
+#else
+#define NODISCARD 
+#endif
+
 namespace siv
 {
 # ifdef __cpp_lib_concepts
@@ -48,6 +61,9 @@ namespace siv
 # endif
 	class BasicPerlinNoise
 	{
+        template< bool B, class T = void >
+        using enable_if_t = typename std::enable_if<B,T>::type;
+
 	public:
 
 		using value_type = Float;
@@ -56,19 +72,28 @@ namespace siv
 
 		std::uint8_t p[512];
 
-		[[nodiscard]]
+#if !__cpp_lib_clamp
+        static constexpr value_type clamp(const value_type& v, const value_type&lo, const value_type& hi) noexcept
+        {
+            if(v<=lo) return lo;
+            if(v>=hi) return hi;
+            return v;
+        }
+#endif
+
+        NODISCARD
 		static constexpr value_type Fade(value_type t) noexcept
 		{
 			return t * t * t * (t * (t * 6 - 15) + 10);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		static constexpr value_type Lerp(value_type t, value_type a, value_type b) noexcept
 		{
 			return a + t * (b - a);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		static constexpr value_type Grad(std::uint8_t hash, value_type x, value_type y, value_type z) noexcept
 		{
 			const std::uint8_t h = hash & 15;
@@ -77,7 +102,7 @@ namespace siv
 			return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		static constexpr value_type Weight(std::int32_t octaves) noexcept
 		{
 			value_type amp = 1;
@@ -94,9 +119,27 @@ namespace siv
 
 	public:
 
-	# if __has_cpp_attribute(nodiscard) >= 201907L
-		[[nodiscard]]
-	# endif
+        NODISCARD BasicPerlinNoise()
+        {
+            deserialize(
+                std::array<uint8_t,256>(
+                    151,160,137,91,90,15,131,13,201,95,96,53,194,233, 7,225,140,36,103,30,69,142,
+                    8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,
+                    35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,
+                    134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,
+                    55,46,245,40,244,102,143,54,65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,
+                    18,169,200,196,135,130,116,188,159,86,164, 100,109,198,173,186, 3, 64,52,217,
+                    226,250,124,123, 5,202, 38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,
+                    17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,
+                    167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185, 112,104,218,
+                    246,97,228,251, 34,242,193,238,210,144, 12,191,179,162,241,81,51,145,235,249,
+                    14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127, 4,
+                    150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
+                )
+            );
+        }
+
+        NODISCARD
 		explicit BasicPerlinNoise(std::uint32_t seed = std::default_random_engine::default_seed)
 		{
 			reseed(seed);
@@ -105,11 +148,9 @@ namespace siv
 	# ifdef __cpp_lib_concepts
 		template <std::uniform_random_bit_generator URNG>
 	# else
-		template <class URNG, std::enable_if_t<!std::is_arithmetic_v<URNG>>* = nullptr>
+		template <class URNG, enable_if_t<!std::is_arithmetic<URNG>::value> * = nullptr>
 	# endif
-	# if __has_cpp_attribute(nodiscard) >= 201907L
-		[[nodiscard]]
-	# endif
+        NODISCARD
 		explicit BasicPerlinNoise(URNG&& urng)
 		{
 			reseed(std::forward<URNG>(urng));
@@ -133,7 +174,7 @@ namespace siv
 	# ifdef __cpp_lib_concepts
 		template <std::uniform_random_bit_generator URNG>
 	# else
-		template <class URNG, std::enable_if_t<!std::is_arithmetic_v<URNG>>* = nullptr>
+		template <class URNG, enable_if_t<!std::is_arithmetic<URNG>::value>* = nullptr>
 	# endif
 		void reseed(URNG&& urng)
 		{
@@ -154,19 +195,19 @@ namespace siv
 		//
 		//	Noise [-1, 1]
 		//
-		[[nodiscard]]
+
 		value_type noise1D(value_type x) const noexcept
 		{
 			return noise3D(x, 0, 0);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type noise2D(value_type x, value_type y) const noexcept
 		{
 			return noise3D(x, y, 0);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type noise3D(value_type x, value_type y, value_type z) const noexcept
 		{
 			const std::int32_t X = static_cast<std::int32_t>(std::floor(x)) & 255;
@@ -198,21 +239,21 @@ namespace siv
 		//
 		//	Noise [0, 1]
 		//
-		[[nodiscard]]
+        NODISCARD
 		value_type noise1D_0_1(value_type x) const noexcept
 		{
 			return noise1D(x)
 				* value_type(0.5) + value_type(0.5);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type noise2D_0_1(value_type x, value_type y) const noexcept
 		{
 			return noise2D(x, y)
 				* value_type(0.5) + value_type(0.5);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type noise3D_0_1(value_type x, value_type y, value_type z) const noexcept
 		{
 			return noise3D(x, y, z)
@@ -224,7 +265,7 @@ namespace siv
 		//	Accumulated octave noise
 		//	* Return value can be outside the range [-1, 1]
 		//
-		[[nodiscard]]
+        NODISCARD
 		value_type accumulatedOctaveNoise1D(value_type x, std::int32_t octaves) const noexcept
 		{
 			value_type result = 0;
@@ -240,7 +281,7 @@ namespace siv
 			return result; // unnormalized
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type accumulatedOctaveNoise2D(value_type x, value_type y, std::int32_t octaves) const noexcept
 		{
 			value_type result = 0;
@@ -257,7 +298,7 @@ namespace siv
 			return result; // unnormalized
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type accumulatedOctaveNoise3D(value_type x, value_type y, value_type z, std::int32_t octaves) const noexcept
 		{
 			value_type result = 0;
@@ -279,21 +320,21 @@ namespace siv
 		//
 		//	Normalized octave noise [-1, 1]
 		//
-		[[nodiscard]]
+        NODISCARD
 		value_type normalizedOctaveNoise1D(value_type x, std::int32_t octaves) const noexcept
 		{
 			return accumulatedOctaveNoise1D(x, octaves)
 				/ Weight(octaves);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type normalizedOctaveNoise2D(value_type x, value_type y, std::int32_t octaves) const noexcept
 		{
 			return accumulatedOctaveNoise2D(x, y, octaves)
 				/ Weight(octaves);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type normalizedOctaveNoise3D(value_type x, value_type y, value_type z, std::int32_t octaves) const noexcept
 		{
 			return accumulatedOctaveNoise3D(x, y, z, octaves)
@@ -304,24 +345,24 @@ namespace siv
 		//
 		//	Accumulated octave noise clamped within the range [0, 1]
 		//
-		[[nodiscard]]
+        NODISCARD
 		value_type accumulatedOctaveNoise1D_0_1(value_type x, std::int32_t octaves) const noexcept
 		{
-			return std::clamp<value_type>(accumulatedOctaveNoise1D(x, octaves)
+			return CLAMPFUNC(accumulatedOctaveNoise1D(x, octaves)
 				* value_type(0.5) + value_type(0.5), 0, 1);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type accumulatedOctaveNoise2D_0_1(value_type x, value_type y, std::int32_t octaves) const noexcept
 		{
-			return std::clamp<value_type>(accumulatedOctaveNoise2D(x, y, octaves)
+			return CLAMPFUNC(accumulatedOctaveNoise2D(x, y, octaves)
 				* value_type(0.5) + value_type(0.5), 0, 1);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type accumulatedOctaveNoise3D_0_1(value_type x, value_type y, value_type z, std::int32_t octaves) const noexcept
 		{
-			return std::clamp<value_type>(accumulatedOctaveNoise3D(x, y, z, octaves)
+			return CLAMPFUNC(accumulatedOctaveNoise3D(x, y, z, octaves)
 				* value_type(0.5) + value_type(0.5), 0, 1);
 		}
 
@@ -329,21 +370,21 @@ namespace siv
 		//
 		//	Normalized octave noise [0, 1]
 		//
-		[[nodiscard]]
+        NODISCARD
 		value_type normalizedOctaveNoise1D_0_1(value_type x, std::int32_t octaves) const noexcept
 		{
 			return normalizedOctaveNoise1D(x, octaves)
 				* value_type(0.5) + value_type(0.5);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type normalizedOctaveNoise2D_0_1(value_type x, value_type y, std::int32_t octaves) const noexcept
 		{
 			return normalizedOctaveNoise2D(x, y, octaves)
 				* value_type(0.5) + value_type(0.5);
 		}
 
-		[[nodiscard]]
+        NODISCARD
 		value_type normalizedOctaveNoise3D_0_1(value_type x, value_type y, value_type z, std::int32_t octaves) const noexcept
 		{
 			return normalizedOctaveNoise3D(x, y, z, octaves)
