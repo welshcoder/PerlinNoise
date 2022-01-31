@@ -119,6 +119,7 @@ namespace siv
 
 	public:
 
+<<<<<<< HEAD
         NODISCARD BasicPerlinNoise()
         {
             deserialize(
@@ -139,6 +140,8 @@ namespace siv
             );
         }
 
+=======
+>>>>>>> 12247dc2a870c1ce8c9583701cfd8a9dc63a08cd
         NODISCARD
 		explicit BasicPerlinNoise(std::uint32_t seed = std::default_random_engine::default_seed)
 		{
